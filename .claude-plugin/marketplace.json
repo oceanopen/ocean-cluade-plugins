@@ -1,0 +1,19 @@
+{
+  "name": "ocean-claude-plugins",
+  "metadata": {
+    "description": "Ocean plugin marketplace for Claude Code extensions",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ocean-code",
+      "source": "./plugins/ocean-code-plugin",
+      "description": "研发辅助插件，提供代码审查、规范检查、文档生成等编程技能，提升日常开发效率"
+    },
+    {
+      "name": "ocean-office",
+      "source": "./plugins/ocean-office-plugin",
+      "description": "办公效率插件，提供 HTML 演示文稿制作等办公技能"
+    }
+  ]
+}
