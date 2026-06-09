@@ -4,6 +4,9 @@
     "description": "Ocean plugin marketplace for Claude Code extensions",
     "version": "1.0.0"
   },
+  "owner": {
+    "name": "Ocean Gao"
+  },
   "plugins": [
     {
       "name": "ocean-code",
