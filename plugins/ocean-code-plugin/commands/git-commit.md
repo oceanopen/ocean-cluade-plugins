@@ -15,7 +15,7 @@ skills: git-commit
 
 1. **全量变更分析**：获取当前分支的全部 git diff 内容（staged 与 unstaged）
 2. **智能生成 message**：依据 git-commit 技能规范生成精炼准确的 commit message
-3. **预览确认**：展示变更总结、commit message、变更文件列表，用户确认后才提交
+3. **预览确认**：先以正文形式展示变更总结、commit message、变更文件列表，再用 `AskUserQuestion` 询问是否提交
 4. **自动暂存**：用户确认后暂存当前分支全部改动
 5. **执行提交**：用户确认后执行 git commit
 6. **确认推送**：提交成功后询问用户是否推送到远程
@@ -77,6 +77,19 @@ skills: git-commit
 - 遵循 `<type>(<scope>): <subject>` 格式
 - 多行时 body 使用列表格式，每项以 `-` 开头
 
+### 3. 预览展示方式（必须执行）
+
+> ⚠️ **预览内容必须先以正文形式输出，再用 `AskUserQuestion` 询问确认，两者不可合并为同一次工具调用。**
+
+**禁止行为**：
+- 禁止将完整 commit message 放进 `AskUserQuestion` 的 `question` 字段——该字段无法承载多行内容，会导致用户在选择按钮中看不到 message
+- 禁止将完整 commit message 放进 `AskUserQuestion` 的 `option` 标签——选项标签只能放短文案（如"确认提交"）
+- 禁止跳过正文预览，直接调用 `AskUserQuestion` 询问
+
+**正确顺序**：
+1. **先用正文输出预览**（变更总结 + 完整 commit message + 变更文件列表）
+2. **再用 `AskUserQuestion` 询问**，`question` 仅问"是否确认提交"，`option` 仅承载"确认提交 / 修改 message / 取消提交"等短标签
+
 ## 实施步骤
 
 严格按照以下步骤执行：
@@ -135,11 +148,11 @@ git diff HEAD
 
 用户提供了 `$ARGUMENTS` 时，将其作为参考，但仍然基于 diff 进行完整分析。
 
-### 步骤 6：展示预览并等待用户确认
+### 步骤 6：用正文输出预览
 
-> ⚠️ **此步骤为强制阻断点，必须使用 `AskUserQuestion` 工具获取用户明确确认后，才能继续执行步骤 7 和步骤 8。禁止跳过此步骤直接执行暂存和提交。**
+> ⚠️ **此步骤必须以独立正文段输出预览内容，禁止合并到下一步的 `AskUserQuestion` 工具调用中。禁止跳过此步骤直接询问确认或提交。**
 
-展示以下信息，并通过 `AskUserQuestion` 工具询问用户是否确认提交：
+输出以下内容（作为正文消息，不是工具调用参数）：
 
 ```
 📋 提交预览
@@ -147,7 +160,7 @@ git diff HEAD
 变更总结：<一句话概括本次变更意图>
 
 Commit Message：
-<完整的 commit message>
+<完整的 commit message，多行模式包含 body>
 
 变更文件：
 - [M] path/to/modified/file
@@ -155,19 +168,27 @@ Commit Message：
 - [D] path/to/deleted/file
 ```
 
-`AskUserQuestion` 选项：
+输出正文预览后，**立即进入步骤 7**，通过 `AskUserQuestion` 询问用户是否确认。
 
-- ✅ 确认提交 → 继续步骤 7（暂存）和步骤 8（提交）
-- ✏️ 修改 message → 根据反馈调整 commit message 后重新展示预览
+### 步骤 7：通过 AskUserQuestion 询问是否确认提交
+
+> ⚠️ **强制阻断点。`AskUserQuestion` 的 `question` 字段和 `option` 标签禁止包含完整 commit message——完整内容必须已在步骤 6 以正文输出。**
+
+`question` 仅问：**是否确认以上提交？**
+
+`AskUserQuestion` 选项（短标签）：
+
+- ✅ 确认提交 → 继续步骤 8（暂存）和步骤 9（提交）
+- ✏️ 修改 message → 根据反馈调整 commit message 后回到步骤 6 重新展示预览
 - ❌ 取消提交 → 中止流程，不执行暂存和提交
 
-### 步骤 7：暂存全部改动
+### 步骤 8：暂存全部改动
 
 ```bash
 git add -A
 ```
 
-### 步骤 8：执行 Commit
+### 步骤 9：执行 Commit
 
 ```bash
 # 单行模式
@@ -181,14 +202,14 @@ git commit -m "<type>(<scope>): <subject>" -m "<body>"
 - 禁止使用 `--no-verify` 或 `--no-gpg-sign`
 - 禁止自动使用 `--amend`
 
-### 步骤 9：询问是否推送
+### 步骤 10：询问是否推送
 
 提交成功后，询问用户：**是否推送到远程仓库？**
 
 - 用户确认 → 执行 `git push`
 - 用户拒绝 → 跳过推送
 
-### 步骤 10：展示最终结果
+### 步骤 11：展示最终结果
 
 ```
 ✅ 提交成功
